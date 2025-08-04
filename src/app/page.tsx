@@ -72,7 +72,7 @@ export default function Home() {
 							</h2>
 
 							<form
-								action='https://formspree.io/f/myzpnkoo'
+								action='YOUR_GOOGLE_SCRIPT_URL_HERE'
 								method='POST'
 								className='space-y-8'>
 								{/* Section 1: Applicant Information */}
