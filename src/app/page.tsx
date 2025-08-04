@@ -74,6 +74,7 @@ export default function Home() {
 							<form
 								action='YOUR_GOOGLE_SCRIPT_URL_HERE'
 								method='POST'
+								target='_blank'
 								className='space-y-8'>
 								{/* Section 1: Applicant Information */}
 								<motion.div
