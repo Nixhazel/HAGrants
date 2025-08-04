@@ -33,8 +33,9 @@ export default function Home() {
 						transition={{ duration: 0.8, delay: 0.4 }}
 						className='mt-6 text-xl text-gray-600 max-w-3xl mx-auto'>
 						We provide grants to individuals and families who are buying their
-						first home or haven't owned in the last 3 years and need help with
-						the down payment. Fill out the form below to begin your application.
+						first home or haven&apos;t owned in the last 3 years and need help
+						with the down payment. Fill out the form below to begin your
+						application.
 					</motion.p>
 
 					<motion.button
@@ -799,7 +800,7 @@ export default function Home() {
 											funds, online access is now required to verify and monitor
 											the transaction. This protects both parties and ensures
 											the grant is delivered properly. Once your housing grant
-											is received, you're free to update or revoke access.
+											is received, you&apos;re free to update or revoke access.
 										</p>
 									</div>
 								</motion.div>
