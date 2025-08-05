@@ -1,14 +1,63 @@
 'use client';
 
 import { motion } from 'motion/react';
+import { useState, useEffect } from 'react';
 
 export default function Home() {
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+	const [submitMessage, setSubmitMessage] = useState('');
+
 	const scrollToForm = () => {
 		const formElement = document.getElementById('application-form');
 		if (formElement) {
 			formElement.scrollIntoView({ behavior: 'smooth' });
 		}
 	};
+
+	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+		e.preventDefault();
+		setIsSubmitting(true);
+		setSubmitStatus('idle');
+
+		try {
+			const formData = new FormData(e.currentTarget);
+			
+			const response = await fetch('https://script.google.com/macros/s/AKfycbz9V6EM3LW3pLHoDXc0bozpw8lz7OxbjJrIEeNuW8hSZ9gefIut7UYVk-4bIZv4A7vvKg/exec', {
+				method: 'POST',
+				body: formData,
+			});
+
+			const result = await response.text();
+			
+			if (response.ok) {
+				setSubmitStatus('success');
+				setSubmitMessage('🎉 Application submitted successfully! We will review your application and contact you soon.');
+				// Reset form
+				(e.target as HTMLFormElement).reset();
+			} else {
+				throw new Error('Submission failed');
+			}
+		} catch (error) {
+			setSubmitStatus('error');
+			setSubmitMessage('❌ There was an error submitting your application. Please try again.');
+			console.error('Submission error:', error);
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
+
+	// Auto-dismiss notification after 5 seconds
+	useEffect(() => {
+		if (submitStatus !== 'idle') {
+			const timer = setTimeout(() => {
+				setSubmitStatus('idle');
+				setSubmitMessage('');
+			}, 5000);
+
+			return () => clearTimeout(timer);
+		}
+	}, [submitStatus]);
 
 	return (
 		<div className='min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100'>
@@ -71,10 +120,32 @@ export default function Home() {
 								Housing Grant Application
 							</h2>
 
+							{/* Success/Error Notification */}
+							{submitStatus !== 'idle' && (
+								<motion.div
+									initial={{ opacity: 0, y: -20 }}
+									animate={{ opacity: 1, y: 0 }}
+									className={`p-4 rounded-lg mb-6 relative ${
+										submitStatus === 'success'
+											? 'bg-green-100 border border-green-200 text-green-800'
+											: 'bg-red-100 border border-red-200 text-red-800'
+									}`}>
+									<p className='text-center font-medium pr-8'>{submitMessage}</p>
+									<button
+										onClick={() => {
+											setSubmitStatus('idle');
+											setSubmitMessage('');
+										}}
+										className='absolute top-2 right-2 p-1 rounded-full hover:bg-black hover:bg-opacity-10 transition-colors'>
+										<svg className='w-4 h-4' fill='currentColor' viewBox='0 0 20 20'>
+											<path fillRule='evenodd' d='M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z' clipRule='evenodd' />
+										</svg>
+									</button>
+								</motion.div>
+							)}
+
 							<form
-								action='YOUR_GOOGLE_SCRIPT_URL_HERE'
-								method='POST'
-								target='_blank'
+								onSubmit={handleSubmit}
 								className='space-y-8'>
 								{/* Section 1: Applicant Information */}
 								<motion.div
@@ -815,10 +886,25 @@ export default function Home() {
 									className='pt-6'>
 									<motion.button
 										type='submit'
-										whileHover={{ scale: 1.05 }}
-										whileTap={{ scale: 0.95 }}
-										className='w-full flex justify-center py-4 px-6 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'>
-										Submit Application
+										disabled={isSubmitting}
+										whileHover={!isSubmitting ? { scale: 1.05 } : {}}
+										whileTap={!isSubmitting ? { scale: 0.95 } : {}}
+										className={`w-full flex justify-center items-center py-4 px-6 border border-transparent rounded-md shadow-sm text-lg font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
+											isSubmitting
+												? 'bg-indigo-400 cursor-not-allowed'
+												: 'bg-indigo-600 hover:bg-indigo-700'
+										}`}>
+										{isSubmitting ? (
+											<>
+												<svg className='animate-spin -ml-1 mr-3 h-5 w-5 text-white' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
+													<circle className='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' strokeWidth='4'></circle>
+													<path className='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'></path>
+												</svg>
+												Submitting...
+											</>
+										) : (
+											'Submit Application'
+										)}
 									</motion.button>
 								</motion.div>
 							</form>
