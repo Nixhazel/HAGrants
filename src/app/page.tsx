@@ -779,13 +779,12 @@ export default function Home() {
 											<label
 												htmlFor='mortgageLender'
 												className='block text-sm font-medium text-gray-700'>
-												Mortgage lender *
+												Mortgage lender 
 											</label>
 											<input
 												type='text'
 												name='mortgageLender'
 												id='mortgageLender'
-												required
 												className='mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-3'
 											/>
 										</div>
@@ -794,7 +793,7 @@ export default function Home() {
 											<label
 												htmlFor='monthlyMortgage'
 												className='block text-sm font-medium text-gray-700'>
-												Monthly mortgage payment *
+												Monthly mortgage payment 
 											</label>
 											<input
 												type='number'
@@ -802,14 +801,13 @@ export default function Home() {
 												id='monthlyMortgage'
 												min='0'
 												step='0.01'
-												required
 												className='mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-3'
 											/>
 										</div>
 
 										<div className='sm:col-span-2'>
 											<label className='block text-sm font-medium text-gray-700 mb-3'>
-												Are you behind on your mortgage? *
+												Are you behind on your mortgage? 
 											</label>
 											<div className='space-y-2'>
 												<div className='flex items-center'>
@@ -818,7 +816,6 @@ export default function Home() {
 														name='behindMortgage'
 														type='radio'
 														value='Yes'
-														required
 														className='focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300'
 													/>
 													<label
