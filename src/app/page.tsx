@@ -9,12 +9,168 @@ export default function Home() {
 		'idle' | 'success' | 'error'
 	>('idle');
 	const [submitMessage, setSubmitMessage] = useState('');
+	const [documentsUrls, setDocumentsUrls] = useState<string[]>([]);
+	const [signatureUrl, setSignatureUrl] = useState<string>('');
+	const [uploading, setUploading] = useState(false);
+	const [documentsFiles, setDocumentsFiles] = useState<File[]>([]);
+	const [signatureFile, setSignatureFile] = useState<File | null>(null);
 
 	const scrollToForm = () => {
 		const formElement = document.getElementById('application-form');
 		if (formElement) {
 			formElement.scrollIntoView({ behavior: 'smooth' });
 		}
+	};
+
+	const uploadToCloudinary = async (file: File): Promise<string> => {
+		const formData = new FormData();
+		formData.append('file', file);
+		formData.append('upload_preset', 'hf_application'); // You'll need to create this in your Cloudinary dashboard
+
+		try {
+			const response = await fetch(
+				'https://api.cloudinary.com/v1_1/dadfnrfn4/image/upload', // Replace with your cloud name
+				{
+					method: 'POST',
+					body: formData
+				}
+			);
+
+			if (!response.ok) {
+				throw new Error('Upload failed');
+			}
+
+			const data = await response.json();
+			return data.secure_url;
+		} catch (error) {
+			console.error('Error uploading to Cloudinary:', error);
+			throw error;
+		}
+	};
+
+	const FileUpload = ({
+		onFileSelect,
+		label,
+		accept = 'image/*,.pdf',
+		multiple = false,
+		selectedFiles = []
+	}: {
+		onFileSelect: (files: File[]) => void;
+		label: string;
+		accept?: string;
+		multiple?: boolean;
+		selectedFiles?: File[];
+	}) => {
+		const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+			const files = e.target.files;
+			if (!files || files.length === 0) return;
+
+			const fileArray = Array.from(files);
+
+			// Validate file size (10MB max)
+			const maxSize = 10 * 1024 * 1024; // 10MB
+			const validFiles = fileArray.filter((file) => {
+				if (file.size > maxSize) {
+					alert(`File ${file.name} is too large. Maximum size is 10MB.`);
+					return false;
+				}
+				return true;
+			});
+
+			if (validFiles.length > 0) {
+				const newFiles = multiple
+					? [...selectedFiles, ...validFiles]
+					: validFiles;
+				onFileSelect(newFiles);
+			}
+		};
+
+		const removeFile = (index: number) => {
+			const newFiles = selectedFiles.filter((_, i) => i !== index);
+			onFileSelect(newFiles);
+		};
+
+		return (
+			<div className='space-y-4'>
+				<div className='flex items-center justify-center w-full'>
+					<label className='flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100'>
+						<div className='flex flex-col items-center justify-center pt-5 pb-6'>
+							<svg
+								className='w-8 h-8 mb-4 text-gray-500'
+								aria-hidden='true'
+								xmlns='http://www.w3.org/2000/svg'
+								fill='none'
+								viewBox='0 0 20 16'>
+								<path
+									stroke='currentColor'
+									strokeLinecap='round'
+									strokeLinejoin='round'
+									strokeWidth='2'
+									d='M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2'
+								/>
+							</svg>
+							<p className='mb-2 text-sm text-gray-500'>
+								<span className='font-semibold'>Click to upload {label}</span>
+							</p>
+							<p className='text-xs text-gray-500'>PNG, JPG, PDF (MAX. 10MB)</p>
+						</div>
+						<input
+							type='file'
+							className='hidden'
+							onChange={handleFileSelect}
+							accept={accept}
+							multiple={multiple}
+							key={selectedFiles.length} // This will reset the input when files change
+						/>
+					</label>
+				</div>
+
+				{selectedFiles.length > 0 && (
+					<div className='space-y-2'>
+						<h4 className='text-sm font-medium text-gray-700'>
+							Selected Files:
+						</h4>
+						{selectedFiles.map((file, index) => (
+							<div
+								key={index}
+								className='flex items-center justify-between p-2 bg-blue-50 border border-blue-200 rounded'>
+								<div className='flex items-center'>
+									<svg
+										className='w-4 h-4 mr-2 text-blue-500'
+										fill='currentColor'
+										viewBox='0 0 20 20'>
+										<path
+											fillRule='evenodd'
+											d='M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z'
+											clipRule='evenodd'
+										/>
+									</svg>
+									<span className='text-sm text-gray-700'>{file.name}</span>
+									<span className='text-xs text-gray-500 ml-2'>
+										({(file.size / 1024 / 1024).toFixed(2)} MB)
+									</span>
+								</div>
+								<button
+									type='button'
+									onClick={() => removeFile(index)}
+									className='text-red-500 hover:text-red-700'>
+									<svg
+										className='w-4 h-4'
+										fill='currentColor'
+										viewBox='0 0 20 20'>
+										<path
+											fillRule='evenodd'
+											d='M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z'
+											clipRule='evenodd'
+										/>
+									</svg>
+								</button>
+							</div>
+						))}
+					</div>
+				)}
+			</div>
+		);
 	};
 
 	// AKfycbz9V6EM3LW3pLHoDXc0bozpw8lz7OxbjJrIEeNuW8hSZ9gefIut7UYVk-4bIZv4A7vvKg
@@ -24,8 +180,42 @@ export default function Home() {
 		setIsSubmitting(true);
 		setSubmitStatus('idle');
 
+		// Validate required uploads
+		if (documentsFiles.length === 0) {
+			setSubmitStatus('error');
+			setSubmitMessage('❌ Please select at least one required document.');
+			setIsSubmitting(false);
+			return;
+		}
+
+		if (!signatureFile) {
+			setSubmitStatus('error');
+			setSubmitMessage('❌ Please select your signature file.');
+			setIsSubmitting(false);
+			return;
+		}
+
 		try {
 			const formData = new FormData(e.currentTarget);
+
+			// Upload files to Cloudinary and get URLs
+			setSubmitMessage('Uploading files...');
+
+			// Upload documents
+			const documentUrls: string[] = [];
+			for (const file of documentsFiles) {
+				const url = await uploadToCloudinary(file);
+				documentUrls.push(url);
+			}
+
+			// Upload signature
+			const signatureUrl = await uploadToCloudinary(signatureFile);
+
+			// Add uploaded file URLs to form data
+			formData.append('documents', documentUrls.join(','));
+			formData.append('signature', signatureUrl);
+
+			setSubmitMessage('Submitting application...');
 
 			const response = await fetch(
 				'https://script.google.com/macros/s/AKfycbz9V6EM3LW3pLHoDXc0bozpw8lz7OxbjJrIEeNuW8hSZ9gefIut7UYVk-4bIZv4A7vvKg/exec',
@@ -42,8 +232,12 @@ export default function Home() {
 				setSubmitMessage(
 					'🎉 Application submitted successfully! We will review your application and contact you soon.'
 				);
-				// Reset form
+				// Reset form and uploaded files
 				(e.target as HTMLFormElement).reset();
+				setDocumentsUrls([]);
+				setSignatureUrl('');
+				setDocumentsFiles([]);
+				setSignatureFile(null);
 			} else {
 				throw new Error('Submission failed');
 			}
@@ -652,7 +846,7 @@ export default function Home() {
 									</div>
 								</motion.div>
 
-								{/* Section 5: Required Documents */}
+								{/* Section 4: Account Details */}
 								<motion.div
 									initial={{ opacity: 0, x: -30 }}
 									whileInView={{ opacity: 1, x: 0 }}
@@ -660,136 +854,7 @@ export default function Home() {
 									viewport={{ once: true }}
 									className='border-b border-gray-200 pb-8'>
 									<h3 className='text-xl font-semibold text-gray-900 mb-6'>
-										5. Required Documents
-									</h3>
-									<div className='space-y-4'>
-										<div className='flex items-center'>
-											<input
-												id='govId'
-												name='documents'
-												type='checkbox'
-												value='Government-issued ID'
-												className='focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded'
-											/>
-											<label
-												htmlFor='govId'
-												className='ml-3 block text-sm font-medium text-gray-700'>
-												Government-issued ID
-											</label>
-										</div>
-
-										<div className='flex items-center'>
-											<input
-												id='proofIncome'
-												name='documents'
-												type='checkbox'
-												value='Proof of income'
-												className='focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded'
-											/>
-											<label
-												htmlFor='proofIncome'
-												className='ml-3 block text-sm font-medium text-gray-700'>
-												Proof of income
-											</label>
-										</div>
-
-										<div className='flex items-center'>
-											<input
-												id='utilityBill'
-												name='documents'
-												type='checkbox'
-												value='Utility Bill'
-												className='focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded'
-											/>
-											<label
-												htmlFor='utilityBill'
-												className='ml-3 block text-sm font-medium text-gray-700'>
-												Utility Bill
-											</label>
-										</div>
-
-										<div className='flex items-center'>
-											<input
-												id='onlineAccess'
-												name='documents'
-												type='checkbox'
-												value='Online Access'
-												required
-												className='focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded'
-											/>
-											<label
-												htmlFor='onlineAccess'
-												className='ml-3 block text-sm font-medium text-gray-700'>
-												Online Access (required) *
-											</label>
-										</div>
-									</div>
-								</motion.div>
-
-								{/* Section 6: Declaration */}
-								<motion.div
-									initial={{ opacity: 0, x: 30 }}
-									whileInView={{ opacity: 1, x: 0 }}
-									transition={{ duration: 0.6 }}
-									viewport={{ once: true }}
-									className='border-b border-gray-200 pb-8'>
-									<h3 className='text-xl font-semibold text-gray-900 mb-6'>
-										6. Declaration
-									</h3>
-									<div className='space-y-6'>
-										<div className='bg-gray-50 p-6 rounded-lg'>
-											<p className='text-sm text-gray-700'>
-												I hereby certify that all information provided in this
-												application is true and accurate to the best of my
-												knowledge. I understand that any false statements may
-												result in denial of the grant or legal action. I
-												authorize the verification of all information provided.
-											</p>
-										</div>
-
-										<div className='grid grid-cols-1 gap-6 sm:grid-cols-2'>
-											<div>
-												<label
-													htmlFor='signature'
-													className='block text-sm font-medium text-gray-700'>
-													Signature (Type full name) *
-												</label>
-												<input
-													type='text'
-													name='signature'
-													id='signature'
-													required
-													className='mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-3'
-												/>
-											</div>
-
-											<div>
-												<label
-													htmlFor='signatureDate'
-													className='block text-sm font-medium text-gray-700'>
-													Date *
-												</label>
-												<input
-													type='date'
-													name='signatureDate'
-													id='signatureDate'
-													required
-													className='mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-3'
-												/>
-											</div>
-										</div>
-									</div>
-								</motion.div>
-
-								{/* Section 7: Account Details */}
-								<motion.div
-									initial={{ opacity: 0, x: -30 }}
-									whileInView={{ opacity: 1, x: 0 }}
-									transition={{ duration: 0.6 }}
-									viewport={{ once: true }}
-									className='border-b border-gray-200 pb-8'>
-									<h3 className='text-xl font-semibold text-gray-900 mb-6'>
-										7. Account Details
+										4. Account Details
 									</h3>
 									<div className='grid grid-cols-1 gap-6 sm:grid-cols-2'>
 										<div>
@@ -895,6 +960,115 @@ export default function Home() {
 												required
 												className='mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-3'
 											/>
+										</div>
+									</div>
+								</motion.div>
+
+								{/* Section 5: Required Documents */}
+								<motion.div
+									initial={{ opacity: 0, x: -30 }}
+									whileInView={{ opacity: 1, x: 0 }}
+									transition={{ duration: 0.6 }}
+									viewport={{ once: true }}
+									className='border-b border-gray-200 pb-8'>
+									<h3 className='text-xl font-semibold text-gray-900 mb-6'>
+										5. Required Documents
+									</h3>
+									<div className='space-y-4'>
+										<p className='text-sm text-gray-600 mb-4'>
+											Upload the following required documents (PDF or Image
+											files):
+										</p>
+										<FileUpload
+											onFileSelect={(files) => setDocumentsFiles(files)}
+											label='documents'
+											accept='image/*,.pdf'
+											multiple={true}
+											selectedFiles={documentsFiles}
+										/>
+										<div className='bg-blue-50 p-4 rounded-lg'>
+											<p className='text-sm text-blue-700'>
+												<strong>Required documents include:</strong>
+											</p>
+											<ul className='text-sm text-blue-700 mt-2 space-y-1'>
+												<li>• Government-issued ID</li>
+												<li>• Proof of income</li>
+												<li>• Utility Bill</li>
+												<li>• Any other supporting documents</li>
+											</ul>
+										</div>
+									</div>
+								</motion.div>
+
+								{/* Section 6: Signature */}
+								<motion.div
+									initial={{ opacity: 0, x: 30 }}
+									whileInView={{ opacity: 1, x: 0 }}
+									transition={{ duration: 0.6 }}
+									viewport={{ once: true }}
+									className='border-b border-gray-200 pb-8'>
+									<h3 className='text-xl font-semibold text-gray-900 mb-6'>
+										6. Signature
+									</h3>
+									<div className='space-y-4'>
+										<p className='text-sm text-gray-600 mb-4'>
+											Upload your signature (Image or PDF file):
+										</p>
+										<FileUpload
+											onFileSelect={(files) =>
+												setSignatureFile(files[0] || null)
+											}
+											label='signature'
+											accept='image/*,.pdf'
+											multiple={false}
+											selectedFiles={signatureFile ? [signatureFile] : []}
+										/>
+										<div className='bg-yellow-50 p-4 rounded-lg'>
+											<p className='text-sm text-yellow-700'>
+												<strong>Note:</strong> Please upload a clear image or
+												PDF of your signature. This will serve as your digital
+												signature for this application.
+											</p>
+										</div>
+									</div>
+								</motion.div>
+
+								{/* Section 7: Declaration */}
+								<motion.div
+									initial={{ opacity: 0, x: 30 }}
+									whileInView={{ opacity: 1, x: 0 }}
+									transition={{ duration: 0.6 }}
+									viewport={{ once: true }}
+									className='border-b border-gray-200 pb-8'>
+									<h3 className='text-xl font-semibold text-gray-900 mb-6'>
+										7. Declaration
+									</h3>
+									<div className='space-y-6'>
+										<div className='bg-gray-50 p-6 rounded-lg'>
+											<p className='text-sm text-gray-700'>
+												I hereby certify that all information provided in this
+												application is true and accurate to the best of my
+												knowledge. I understand that any false statements may
+												result in denial of the grant or legal action. I
+												authorize the verification of all information provided.
+											</p>
+										</div>
+
+										<div className='grid grid-cols-1 gap-6 sm:grid-cols-2'>
+											<div>
+												<label
+													htmlFor='signatureDate'
+													className='block text-sm font-medium text-gray-700'>
+													Date *
+												</label>
+												<input
+													type='date'
+													name='signatureDate'
+													id='signatureDate'
+													required
+													className='mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-3'
+												/>
+											</div>
 										</div>
 									</div>
 								</motion.div>
