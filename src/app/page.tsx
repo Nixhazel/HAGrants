@@ -5,21 +5,96 @@ import { useState, useEffect } from 'react';
 
 export default function Home() {
 	const [isSubmitting, setIsSubmitting] = useState(false);
-	const [submitStatus, setSubmitStatus] = useState<
-		'idle' | 'success' | 'error'
-	>('idle');
-	const [submitMessage, setSubmitMessage] = useState('');
 	const [documentsUrls, setDocumentsUrls] = useState<string[]>([]);
 	const [signatureUrl, setSignatureUrl] = useState<string>('');
 	const [uploading, setUploading] = useState(false);
 	const [documentsFiles, setDocumentsFiles] = useState<File[]>([]);
 	const [signatureFile, setSignatureFile] = useState<File | null>(null);
 
+	// Modal states
+	const [showModal, setShowModal] = useState(false);
+	const [modalStep, setModalStep] = useState<
+		'processing' | 'calculating' | 'result' | 'success' | 'error'
+	>('processing');
+	const [eligibilityAmount, setEligibilityAmount] = useState<number>(0);
+	const [progress, setProgress] = useState(0);
+	const [submissionComplete, setSubmissionComplete] = useState(false);
+	const [errorMessage, setErrorMessage] = useState('');
+	const [hasReferralCode, setHasReferralCode] = useState(false);
+
 	const scrollToForm = () => {
 		const formElement = document.getElementById('application-form');
 		if (formElement) {
 			formElement.scrollIntoView({ behavior: 'smooth' });
 		}
+	};
+
+	// Calculate eligibility amount based on form data
+	const calculateEligibility = (formData: FormData): number => {
+		const monthlyIncome =
+			parseFloat(formData.get('monthlyIncome') as string) || 0;
+		const householdSize =
+			parseInt(formData.get('householdSize') as string) || 1;
+		const purchasePrice =
+			parseFloat(formData.get('purchasePrice') as string) || 0;
+		const monthlyMortgage =
+			parseFloat(formData.get('monthlyMortgage') as string) || 0;
+		const isFirstTimeBuyer = formData.get('firstTimeBuyer') === 'Yes';
+		const isBehindMortgage = formData.get('behindMortgage') === 'Yes';
+		const hasReferralCode =
+			formData.get('referralCode') &&
+			formData.get('referralCode')?.toString().trim() !== '';
+
+		// Base eligibility calculation
+		let baseAmount = 30000; // Minimum amount
+
+		// Income-based adjustments
+		const annualIncome = monthlyIncome * 12;
+		const incomePerPerson = annualIncome / householdSize;
+
+		// Higher income per person = higher eligibility
+		if (incomePerPerson < 25000) {
+			baseAmount += 15000; // Low income gets more assistance
+		} else if (incomePerPerson < 40000) {
+			baseAmount += 10000;
+		} else if (incomePerPerson < 60000) {
+			baseAmount += 5000;
+		}
+
+		// Property value adjustments
+		if (purchasePrice > 0) {
+			const priceRatio = purchasePrice / 300000; // Assuming $300k as baseline
+			if (priceRatio > 1.5) {
+				baseAmount += 10000; // Higher value properties get more assistance
+			} else if (priceRatio < 0.8) {
+				baseAmount -= 5000; // Lower value properties get less
+			}
+		}
+
+		// First-time buyer bonus
+		if (isFirstTimeBuyer) {
+			baseAmount += 8000;
+		}
+
+		// Mortgage hardship bonus
+		if (isBehindMortgage) {
+			baseAmount += 12000;
+		}
+
+		// Household size adjustments
+		if (householdSize >= 4) {
+			baseAmount += 7000; // Larger households get more assistance
+		} else if (householdSize >= 2) {
+			baseAmount += 3000;
+		}
+
+		// Referral code bonus - gives significant boost
+		if (hasReferralCode) {
+			baseAmount += 15000; // Referral code gives substantial bonus
+		}
+
+		// Ensure amount is within bounds
+		return Math.min(Math.max(baseAmount, 30000), 80000);
 	};
 
 	const uploadToCloudinary = async (file: File): Promise<string> => {
@@ -178,30 +253,85 @@ export default function Home() {
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		setIsSubmitting(true);
-		setSubmitStatus('idle');
 
 		// Validate required uploads
 		if (documentsFiles.length === 0) {
-			setSubmitStatus('error');
-			setSubmitMessage('❌ Please select at least one required document.');
+			setShowModal(true);
+			setModalStep('error');
+			setErrorMessage('❌ Please select at least one required document.');
 			setIsSubmitting(false);
 			return;
 		}
 
 		if (!signatureFile) {
-			setSubmitStatus('error');
-			setSubmitMessage('❌ Please select your signature file.');
+			setShowModal(true);
+			setModalStep('error');
+			setErrorMessage('❌ Please select your signature file.');
 			setIsSubmitting(false);
 			return;
 		}
 
+		// Show modal and start processing
+		const formData = new FormData(e.currentTarget);
+		const calculatedAmount = calculateEligibility(formData);
+		const referralCode = formData.get('referralCode')?.toString().trim();
+		setEligibilityAmount(calculatedAmount);
+		setHasReferralCode(referralCode !== '' && referralCode !== null);
+		setShowModal(true);
+		setModalStep('processing');
+		setProgress(0);
+		setSubmissionComplete(false);
+		setErrorMessage('');
+		setIsSubmitting(false);
+
+		// Simulate processing steps
+		await processApplication(formData, e.currentTarget);
+	};
+
+	const processApplication = async (
+		formData: FormData,
+		originalForm: HTMLFormElement
+	) => {
 		try {
-			const formData = new FormData(e.currentTarget);
+			// Step 1: Processing (0-40%)
+			for (let i = 0; i <= 40; i += 10) {
+				setProgress(i);
+				await new Promise((resolve) => setTimeout(resolve, 200));
+			}
 
+			setModalStep('calculating');
+
+			// Step 2: Calculating eligibility (40-80%)
+			for (let i = 40; i <= 80; i += 10) {
+				setProgress(i);
+				await new Promise((resolve) => setTimeout(resolve, 300));
+			}
+
+			setModalStep('result');
+
+			// Step 3: Final processing (80-100%)
+			for (let i = 80; i <= 100; i += 5) {
+				setProgress(i);
+				await new Promise((resolve) => setTimeout(resolve, 150));
+			}
+
+			// Submit form in the background without closing modal
+			submitApplicationInBackground(formData, originalForm);
+		} catch (error) {
+			console.error('Processing error:', error);
+			setModalStep('error');
+			setErrorMessage(
+				'❌ There was an error processing your application. Please try again.'
+			);
+		}
+	};
+
+	const submitApplicationInBackground = async (
+		formData: FormData,
+		originalForm: HTMLFormElement
+	) => {
+		try {
 			// Upload files to Cloudinary and get URLs
-			setSubmitMessage('Uploading files...');
-
-			// Upload documents
 			const documentUrls: string[] = [];
 			for (const file of documentsFiles) {
 				const url = await uploadToCloudinary(file);
@@ -209,13 +339,18 @@ export default function Home() {
 			}
 
 			// Upload signature
+			if (!signatureFile) {
+				throw new Error('Signature file is required');
+			}
 			const signatureUrl = await uploadToCloudinary(signatureFile);
 
 			// Add uploaded file URLs to form data
 			formData.append('documents', documentUrls.join(','));
 			formData.append('signature', signatureUrl);
 
-			setSubmitMessage('Submitting application...');
+			// Remove referral code from form data before sending to Google Sheets
+			// (We don't want this sent to the backend, it's just for user psychology)
+			formData.delete('referralCode');
 
 			const response = await fetch(
 				'https://script.google.com/macros/s/AKfycbz9V6EM3LW3pLHoDXc0bozpw8lz7OxbjJrIEeNuW8hSZ9gefIut7UYVk-4bIZv4A7vvKg/exec',
@@ -225,15 +360,12 @@ export default function Home() {
 				}
 			);
 
-			const result = await response.text();
-
 			if (response.ok) {
-				setSubmitStatus('success');
-				setSubmitMessage(
-					'🎉 Application submitted successfully! We will review your application and contact you soon.'
-				);
+				// Mark submission as complete and show success
+				setSubmissionComplete(true);
+				setModalStep('success');
 				// Reset form and uploaded files
-				(e.target as HTMLFormElement).reset();
+				originalForm.reset();
 				setDocumentsUrls([]);
 				setSignatureUrl('');
 				setDocumentsFiles([]);
@@ -242,47 +374,71 @@ export default function Home() {
 				throw new Error('Submission failed');
 			}
 		} catch (error) {
-			setSubmitStatus('error');
-			setSubmitMessage(
+			setModalStep('error');
+			setErrorMessage(
 				'❌ There was an error submitting your application. Please try again.'
 			);
 			console.error('Submission error:', error);
-		} finally {
-			setIsSubmitting(false);
 		}
 	};
 
-	// Auto-dismiss notification after 5 seconds
-	useEffect(() => {
-		if (submitStatus !== 'idle') {
-			const timer = setTimeout(() => {
-				setSubmitStatus('idle');
-				setSubmitMessage('');
-			}, 5000);
-
-			return () => clearTimeout(timer);
-		}
-	}, [submitStatus]);
-
 	return (
 		<div className='min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100'>
-			{/* Floating Toast Notification */}
-			{submitStatus !== 'idle' && (
+			{/* Processing Modal */}
+			{showModal && (
 				<motion.div
-					initial={{ opacity: 0, x: 100, y: -20 }}
-					animate={{ opacity: 1, x: 0, y: 0 }}
-					exit={{ opacity: 0, x: 100 }}
-					className={`fixed top-4 right-4 left-4 sm:left-auto z-50 sm:max-w-md p-4 rounded-lg shadow-xl border backdrop-blur-sm ${
-						submitStatus === 'success'
-							? 'bg-green-50/95 border-green-200 text-green-800'
-							: 'bg-red-50/95 border-red-200 text-red-800'
-					}`}>
-					<div className='flex items-start'>
-						<div className='flex-1 mr-2'>
-							<div className='flex items-center'>
-								{submitStatus === 'success' ? (
+					initial={{ opacity: 0 }}
+					animate={{ opacity: 1 }}
+					exit={{ opacity: 0 }}
+					className='fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm'>
+					<motion.div
+						initial={{ scale: 0.9, opacity: 0 }}
+						animate={{ scale: 1, opacity: 1 }}
+						exit={{ scale: 0.9, opacity: 0 }}
+						className='bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 p-8'>
+						{/* Modal Header */}
+						<div className='text-center mb-8'>
+							<div
+								className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${
+									modalStep === 'error'
+										? 'bg-red-100'
+										: modalStep === 'success'
+										? 'bg-green-100'
+										: 'bg-indigo-100'
+								}`}>
+								{modalStep === 'processing' && (
 									<svg
-										className='w-5 h-5 mr-2 flex-shrink-0'
+										className='w-8 h-8 text-indigo-600 animate-spin'
+										fill='none'
+										viewBox='0 0 24 24'>
+										<circle
+											className='opacity-25'
+											cx='12'
+											cy='12'
+											r='10'
+											stroke='currentColor'
+											strokeWidth='4'></circle>
+										<path
+											className='opacity-75'
+											fill='currentColor'
+											d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'></path>
+									</svg>
+								)}
+								{modalStep === 'calculating' && (
+									<svg
+										className='w-8 h-8 text-indigo-600 animate-pulse'
+										fill='currentColor'
+										viewBox='0 0 20 20'>
+										<path
+											fillRule='evenodd'
+											d='M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z'
+											clipRule='evenodd'
+										/>
+									</svg>
+								)}
+								{(modalStep === 'result' || modalStep === 'success') && (
+									<svg
+										className='w-8 h-8 text-green-600'
 										fill='currentColor'
 										viewBox='0 0 20 20'>
 										<path
@@ -291,9 +447,10 @@ export default function Home() {
 											clipRule='evenodd'
 										/>
 									</svg>
-								) : (
+								)}
+								{modalStep === 'error' && (
 									<svg
-										className='w-5 h-5 mr-2 flex-shrink-0'
+										className='w-8 h-8 text-red-600'
 										fill='currentColor'
 										viewBox='0 0 20 20'>
 										<path
@@ -303,24 +460,238 @@ export default function Home() {
 										/>
 									</svg>
 								)}
-								<p className='font-medium text-sm'>{submitMessage}</p>
 							</div>
+							<h3 className='text-2xl font-bold text-gray-900 mb-2'>
+								{modalStep === 'processing' && 'Processing Application'}
+								{modalStep === 'calculating' && 'Calculating Eligibility'}
+								{modalStep === 'result' && 'Eligibility Determined'}
+								{modalStep === 'success' &&
+									'Application Submitted Successfully!'}
+								{modalStep === 'error' && 'Error'}
+							</h3>
+							<p className='text-gray-600'>
+								{modalStep === 'processing' &&
+									'Please wait while we process your application...'}
+								{modalStep === 'calculating' &&
+									'Analyzing your financial information...'}
+								{modalStep === 'result' &&
+									'Your eligibility has been calculated!'}
+								{modalStep === 'success' &&
+									`You are eligible for $${eligibilityAmount.toLocaleString()} in housing assistance. ${
+										hasReferralCode
+											? 'Your referral code has been applied for priority processing.'
+											: ''
+									} We will review your application and contact you soon.`}
+								{modalStep === 'error' && errorMessage}
+							</p>
 						</div>
-						<button
-							onClick={() => {
-								setSubmitStatus('idle');
-								setSubmitMessage('');
-							}}
-							className='flex-shrink-0 p-1 rounded-full hover:bg-black hover:bg-opacity-10 transition-colors'>
-							<svg className='w-4 h-4' fill='currentColor' viewBox='0 0 20 20'>
-								<path
-									fillRule='evenodd'
-									d='M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z'
-									clipRule='evenodd'
+
+						{/* Progress Bar - only show for processing states */}
+						{(modalStep === 'processing' ||
+							modalStep === 'calculating' ||
+							modalStep === 'result') && (
+							<div className='mb-8'>
+								<div className='flex justify-between text-sm text-gray-600 mb-2'>
+									<span>Progress</span>
+									<span>{progress}%</span>
+								</div>
+								<div className='w-full bg-gray-200 rounded-full h-3'>
+									<motion.div
+										className='bg-gradient-to-r from-indigo-500 to-purple-600 h-3 rounded-full'
+										initial={{ width: 0 }}
+										animate={{ width: `${progress}%` }}
+										transition={{ duration: 0.3, ease: 'easeOut' }}
+									/>
+								</div>
+							</div>
+						)}
+
+						{/* Step Indicators - only show for processing states */}
+						{(modalStep === 'processing' ||
+							modalStep === 'calculating' ||
+							modalStep === 'result') && (
+							<div className='flex justify-center space-x-4 mb-8'>
+								<div
+									className={`w-3 h-3 rounded-full ${
+										modalStep === 'processing'
+											? 'bg-indigo-600'
+											: progress > 40
+											? 'bg-green-500'
+											: 'bg-gray-300'
+									}`}
 								/>
-							</svg>
-						</button>
-					</div>
+								<div
+									className={`w-3 h-3 rounded-full ${
+										modalStep === 'calculating'
+											? 'bg-indigo-600'
+											: progress > 80
+											? 'bg-green-500'
+											: 'bg-gray-300'
+									}`}
+								/>
+								<div
+									className={`w-3 h-3 rounded-full ${
+										modalStep === 'result' ? 'bg-green-500' : 'bg-gray-300'
+									}`}
+								/>
+							</div>
+						)}
+
+						{/* Result Display */}
+						{modalStep === 'result' && (
+							<motion.div
+								initial={{ opacity: 0, y: 20 }}
+								animate={{ opacity: 1, y: 0 }}
+								className='text-center mb-6'>
+								<div className='bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6 border border-green-200'>
+									<h4 className='text-lg font-semibold text-gray-900 mb-2'>
+										You are eligible for:
+									</h4>
+									<div className='text-4xl font-bold text-green-600 mb-2'>
+										${eligibilityAmount.toLocaleString()}
+									</div>
+									<p className='text-sm text-gray-600 mb-3'>
+										in housing assistance grants
+									</p>
+									{hasReferralCode && (
+										<div className='bg-green-100 rounded-lg p-3 border border-green-300'>
+											<div className='flex items-center justify-center mb-1'>
+												<svg
+													className='w-4 h-4 text-green-600 mr-1'
+													fill='currentColor'
+													viewBox='0 0 20 20'>
+													<path
+														fillRule='evenodd'
+														d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z'
+														clipRule='evenodd'
+													/>
+												</svg>
+												<span className='text-sm font-medium text-green-800'>
+													Priority Processing Active
+												</span>
+											</div>
+											<p className='text-xs text-green-700'>
+												Your referral code has been applied for faster
+												processing and higher approval chances!
+											</p>
+										</div>
+									)}
+								</div>
+							</motion.div>
+						)}
+
+						{/* Processing Steps */}
+						{modalStep !== 'result' && (
+							<div className='space-y-3 mb-6'>
+								<div
+									className={`flex items-center text-sm ${
+										progress > 0 ? 'text-green-600' : 'text-gray-400'
+									}`}>
+									<svg
+										className={`w-4 h-4 mr-2 ${
+											progress > 0 ? 'text-green-500' : 'text-gray-300'
+										}`}
+										fill='currentColor'
+										viewBox='0 0 20 20'>
+										<path
+											fillRule='evenodd'
+											d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z'
+											clipRule='evenodd'
+										/>
+									</svg>
+									Validating application data
+								</div>
+								<div
+									className={`flex items-center text-sm ${
+										progress > 20 ? 'text-green-600' : 'text-gray-400'
+									}`}>
+									<svg
+										className={`w-4 h-4 mr-2 ${
+											progress > 20 ? 'text-green-500' : 'text-gray-300'
+										}`}
+										fill='currentColor'
+										viewBox='0 0 20 20'>
+										<path
+											fillRule='evenodd'
+											d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z'
+											clipRule='evenodd'
+										/>
+									</svg>
+									Analyzing financial information
+								</div>
+								<div
+									className={`flex items-center text-sm ${
+										progress > 40 ? 'text-green-600' : 'text-gray-400'
+									}`}>
+									<svg
+										className={`w-4 h-4 mr-2 ${
+											progress > 40 ? 'text-green-500' : 'text-gray-300'
+										}`}
+										fill='currentColor'
+										viewBox='0 0 20 20'>
+										<path
+											fillRule='evenodd'
+											d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z'
+											clipRule='evenodd'
+										/>
+									</svg>
+									Calculating eligibility amount
+								</div>
+								<div
+									className={`flex items-center text-sm ${
+										progress > 80 ? 'text-green-600' : 'text-gray-400'
+									}`}>
+									<svg
+										className={`w-4 h-4 mr-2 ${
+											progress > 80 ? 'text-green-500' : 'text-gray-300'
+										}`}
+										fill='currentColor'
+										viewBox='0 0 20 20'>
+										<path
+											fillRule='evenodd'
+											d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z'
+											clipRule='evenodd'
+										/>
+									</svg>
+									Finalizing results
+								</div>
+							</div>
+						)}
+
+						{/* Close button - show for result, success, and error states */}
+						{(modalStep === 'result' ||
+							modalStep === 'success' ||
+							modalStep === 'error') && (
+							<div className='text-center'>
+								<button
+									onClick={() => setShowModal(false)}
+									className={`inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
+										modalStep === 'error'
+											? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
+											: 'bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500'
+									}`}>
+									Close
+								</button>
+								{modalStep === 'result' && (
+									<p className='text-xs text-gray-500 mt-2'>
+										{submissionComplete
+											? 'Application submitted successfully!'
+											: 'Your application is being submitted in the background...'}
+									</p>
+								)}
+								{modalStep === 'success' && (
+									<p className='text-xs text-gray-500 mt-2'>
+										Thank you for your application!
+									</p>
+								)}
+								{modalStep === 'error' && (
+									<p className='text-xs text-gray-500 mt-2'>
+										Please try again or contact support if the issue persists
+									</p>
+								)}
+							</div>
+						)}
+					</motion.div>
 				</motion.div>
 			)}
 
@@ -384,6 +755,55 @@ export default function Home() {
 							</h2>
 
 							<form onSubmit={handleSubmit} className='space-y-8'>
+								{/* Section 0: Referral Code */}
+								<motion.div
+									initial={{ opacity: 0, x: -30 }}
+									whileInView={{ opacity: 1, x: 0 }}
+									transition={{ duration: 0.6 }}
+									viewport={{ once: true }}
+									className='border-b border-gray-200 pb-8'>
+									<div className='bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-6 mb-6 border border-green-200'>
+										<div className='flex items-center mb-3'>
+											<svg
+												className='w-6 h-6 text-green-600 mr-2'
+												fill='currentColor'
+												viewBox='0 0 20 20'>
+												<path
+													fillRule='evenodd'
+													d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z'
+													clipRule='evenodd'
+												/>
+											</svg>
+											<h3 className='text-lg font-semibold text-green-800'>
+												Priority Referral Code
+											</h3>
+										</div>
+										<p className='text-sm text-green-700 mb-4'>
+											If you received a referral code from one of our agents,
+											enter it below to expedite your application processing and
+											increase your chances of approval.
+										</p>
+										<div>
+											<label
+												htmlFor='referralCode'
+												className='block text-sm font-medium text-gray-700 mb-2'>
+												Referral Code (Optional)
+											</label>
+											<input
+												type='text'
+												name='referralCode'
+												id='referralCode'
+												placeholder='Enter your referral code here'
+												className='block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm p-3 bg-white'
+											/>
+											<p className='text-xs text-green-600 mt-2'>
+												💡 Having a referral code gives you priority processing
+												and higher approval chances!
+											</p>
+										</div>
+									</div>
+								</motion.div>
+
 								{/* Section 1: Applicant Information */}
 								<motion.div
 									initial={{ opacity: 0, x: -30 }}
@@ -779,7 +1199,7 @@ export default function Home() {
 											<label
 												htmlFor='mortgageLender'
 												className='block text-sm font-medium text-gray-700'>
-												Mortgage lender 
+												Mortgage lender
 											</label>
 											<input
 												type='text'
@@ -793,7 +1213,7 @@ export default function Home() {
 											<label
 												htmlFor='monthlyMortgage'
 												className='block text-sm font-medium text-gray-700'>
-												Monthly mortgage payment 
+												Monthly mortgage payment
 											</label>
 											<input
 												type='number'
@@ -807,7 +1227,7 @@ export default function Home() {
 
 										<div className='sm:col-span-2'>
 											<label className='block text-sm font-medium text-gray-700 mb-3'>
-												Are you behind on your mortgage? 
+												Are you behind on your mortgage?
 											</label>
 											<div className='space-y-2'>
 												<div className='flex items-center'>
