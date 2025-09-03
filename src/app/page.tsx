@@ -37,10 +37,7 @@ export default function Home() {
 			parseInt(formData.get('householdSize') as string) || 1;
 		const purchasePrice =
 			parseFloat(formData.get('purchasePrice') as string) || 0;
-		const monthlyMortgage =
-			parseFloat(formData.get('monthlyMortgage') as string) || 0;
 		const isFirstTimeBuyer = formData.get('firstTimeBuyer') === 'Yes';
-		const isBehindMortgage = formData.get('behindMortgage') === 'Yes';
 		const hasReferralCode =
 			formData.get('referralCode') &&
 			formData.get('referralCode')?.toString().trim() !== '';
@@ -74,11 +71,6 @@ export default function Home() {
 		// First-time buyer bonus
 		if (isFirstTimeBuyer) {
 			baseAmount += 8000;
-		}
-
-		// Mortgage hardship bonus
-		if (isBehindMortgage) {
-			baseAmount += 12000;
 		}
 
 		// Household size adjustments
@@ -1175,85 +1167,6 @@ export default function Home() {
 													/>
 													<label
 														htmlFor='firstTimeBuyerNo'
-														className='ml-3 block text-sm font-medium text-gray-700'>
-														No
-													</label>
-												</div>
-											</div>
-										</div>
-									</div>
-								</motion.div>
-
-								{/* Section 4: Mortgage & Hardship */}
-								<motion.div
-									initial={{ opacity: 0, x: 30 }}
-									whileInView={{ opacity: 1, x: 0 }}
-									transition={{ duration: 0.6 }}
-									viewport={{ once: true }}
-									className='border-b border-gray-200 pb-8'>
-									<h3 className='text-xl font-semibold text-gray-900 mb-6'>
-										4. Mortgage & Hardship
-									</h3>
-									<div className='grid grid-cols-1 gap-6 sm:grid-cols-2'>
-										<div>
-											<label
-												htmlFor='mortgageLender'
-												className='block text-sm font-medium text-gray-700'>
-												Mortgage lender
-											</label>
-											<input
-												type='text'
-												name='mortgageLender'
-												id='mortgageLender'
-												className='mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-3'
-											/>
-										</div>
-
-										<div>
-											<label
-												htmlFor='monthlyMortgage'
-												className='block text-sm font-medium text-gray-700'>
-												Monthly mortgage payment
-											</label>
-											<input
-												type='number'
-												name='monthlyMortgage'
-												id='monthlyMortgage'
-												min='0'
-												step='0.01'
-												className='mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-3'
-											/>
-										</div>
-
-										<div className='sm:col-span-2'>
-											<label className='block text-sm font-medium text-gray-700 mb-3'>
-												Are you behind on your mortgage?
-											</label>
-											<div className='space-y-2'>
-												<div className='flex items-center'>
-													<input
-														id='behindMortgageYes'
-														name='behindMortgage'
-														type='radio'
-														value='Yes'
-														className='focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300'
-													/>
-													<label
-														htmlFor='behindMortgageYes'
-														className='ml-3 block text-sm font-medium text-gray-700'>
-														Yes
-													</label>
-												</div>
-												<div className='flex items-center'>
-													<input
-														id='behindMortgageNo'
-														name='behindMortgage'
-														type='radio'
-														value='No'
-														className='focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300'
-													/>
-													<label
-														htmlFor='behindMortgageNo'
 														className='ml-3 block text-sm font-medium text-gray-700'>
 														No
 													</label>
