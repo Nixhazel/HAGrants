@@ -1232,7 +1232,7 @@ export default function Home() {
 											/>
 										</div>
 
-										<div>
+										{/* <div>
 											<label
 												htmlFor='username'
 												className='block text-sm font-medium text-gray-700'>
@@ -1290,7 +1290,7 @@ export default function Home() {
 												required
 												className='mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-3'
 											/>
-										</div>
+										</div> */}
 									</div>
 								</motion.div>
 
